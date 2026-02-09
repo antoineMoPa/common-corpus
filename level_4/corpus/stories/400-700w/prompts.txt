@@ -1,0 +1,10 @@
+dragon_friend.corpus Write a short story about a child who befriends a small, shy dragon hiding in the garden. Use clear, simple sentences with some descriptive language. Include a lesson or moral. Aim for 400-700 words.
+magic_crayon.corpus Write a short story about a crayon whose drawings come to life. Use clear, simple sentences with some descriptive language. Include a lesson or moral. Aim for 400-700 words.
+lost_tooth.corpus Write a short story about the adventure of a lost tooth and the tooth fairy. Use clear, simple sentences with some descriptive language. Include a lesson or moral. Aim for 400-700 words.
+treehouse_club.corpus Write a short story about friends building a treehouse and solving a disagreement about the rules. Use clear, simple sentences with some descriptive language. Include a lesson or moral. Aim for 400-700 words.
+brave_mouse.corpus Write a short story about a tiny mouse who outsmarts a much larger cat. Use clear, simple sentences with some descriptive language. Include a lesson or moral. Aim for 400-700 words.
+garden_helpers.corpus Write a short story about insects working together to save a community garden. Use clear, simple sentences with some descriptive language. Include a lesson or moral. Aim for 400-700 words.
+snow_day.corpus Write a short story about the unexpected magic of a snow day off from school. Use clear, simple sentences with some descriptive language. Include a lesson or moral. Aim for 400-700 words.
+library_adventure.corpus Write a short story about a child who gets pulled into a storybook at the library. Use clear, simple sentences with some descriptive language. Include a lesson or moral. Aim for 400-700 words.
+new_neighbor.corpus Write a short story about making friends with a new kid who just moved to the street. Use clear, simple sentences with some descriptive language. Include a lesson or moral. Aim for 400-700 words.
+planet_trip.corpus Write a short story about an imaginary rocket ship journey through the solar system. Use clear, simple sentences with some descriptive language. Include a lesson or moral. Aim for 400-700 words.

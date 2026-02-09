@@ -1,0 +1,2 @@
+# Override parent's *.corpus ignore — these cost money to generate
+!*.corpus

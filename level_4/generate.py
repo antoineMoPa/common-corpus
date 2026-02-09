@@ -1,0 +1,188 @@
+#!/usr/bin/env python3
+"""
+Walk all prompts.txt files under corpus/ and generate missing .corpus files
+using fal.ai's OpenRouter endpoint.
+
+Usage:
+    python generate.py            # generate up to 10 missing files
+    python generate.py -n 25      # generate up to 25 missing files
+    python generate.py -n 0       # dry-run: list missing files only
+
+Reads FAL_KEY from ~/.env (KEY=VALUE format, one per line).
+"""
+
+import argparse
+import json
+import os
+import sys
+import time
+import urllib.request
+import urllib.error
+
+FAL_QUEUE_URL = "https://queue.fal.run/openrouter/router"
+CORPUS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "corpus")
+
+SYSTEM_PROMPT = (
+    "You are a skilled writer producing high-quality text for a "
+    "training corpus. Write only the requested content — no meta "
+    "commentary, no titles unless they fit naturally, no markdown "
+    "formatting. Output plain prose."
+)
+
+
+def load_key(name: str) -> str | None:
+    """Read a key from ~/.env (KEY=VALUE format)."""
+    env_path = os.path.expanduser("~/.env")
+    if not os.path.exists(env_path):
+        return None
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" in line:
+                k, v = line.split("=", 1)
+                if k.strip() == name:
+                    return v.strip()
+    return None
+
+
+def find_pending(corpus_dir: str) -> list[tuple[str, str, str]]:
+    """Return list of (directory, filename, prompt) for missing .corpus files."""
+    pending = []
+    for root, _dirs, files in os.walk(corpus_dir):
+        if "prompts.txt" not in files:
+            continue
+        prompts_path = os.path.join(root, "prompts.txt")
+        with open(prompts_path) as f:
+            for line_no, line in enumerate(f, 1):
+                line = line.strip()
+                if not line:
+                    continue
+                parts = line.split(" ", 1)
+                if len(parts) != 2:
+                    print(f"WARNING: bad format at {prompts_path}:{line_no}, skipping")
+                    continue
+                filename, prompt = parts
+                if not filename.endswith(".corpus"):
+                    print(f"WARNING: filename doesn't end with .corpus at {prompts_path}:{line_no}, skipping")
+                    continue
+                filepath = os.path.join(root, filename)
+                if not os.path.exists(filepath):
+                    pending.append((root, filename, prompt))
+    return pending
+
+
+def _fal_request(api_key: str, method: str, url: str, body: dict | None = None) -> dict:
+    """Make an authenticated request to fal.ai and return parsed JSON."""
+    data = json.dumps(body).encode() if body else None
+    req = urllib.request.Request(
+        url,
+        data=data,
+        method=method,
+        headers={
+            "Authorization": f"Key {api_key}",
+            "Content-Type": "application/json",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return json.loads(resp.read().decode())
+
+
+def generate_one(api_key: str, prompt: str, model: str) -> str:
+    """Generate a single corpus file via fal.ai queue API (submit + poll)."""
+    # 1. Submit to queue
+    submit = _fal_request(api_key, "POST", FAL_QUEUE_URL, {
+        "model": model,
+        "system_prompt": SYSTEM_PROMPT,
+        "prompt": prompt,
+        "temperature": 0.8,
+        "max_tokens": 4096,
+    })
+    request_id = submit["request_id"]
+    status_url = f"{FAL_QUEUE_URL}/requests/{request_id}/status"
+    result_url = f"{FAL_QUEUE_URL}/requests/{request_id}"
+
+    # 2. Poll for completion
+    poll_interval = 2
+    elapsed = 0
+    last_state = None
+    while True:
+        status = _fal_request(api_key, "GET", status_url)
+        state = status.get("status")
+        if state != last_state:
+            print(f"[{state}] ", end="", flush=True)
+            last_state = state
+        else:
+            print(".", end="", flush=True)
+        if state == "COMPLETED":
+            break
+        if state in ("FAILED", "CANCELLED"):
+            raise RuntimeError(f"Request {state}: {status}")
+        time.sleep(poll_interval)
+        elapsed += poll_interval
+
+    # 3. Fetch result
+    result = _fal_request(api_key, "GET", result_url)
+    if result.get("error"):
+        raise RuntimeError(result["error"])
+
+    return result["output"].strip()
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Generate missing .corpus files from prompts.txt")
+    parser.add_argument(
+        "-n", type=int, default=10,
+        help="Max number of files to generate (0 = dry-run, default: 10)",
+    )
+    parser.add_argument(
+        "--model", type=str, default="qwen/qwen-2.5-72b-instruct",
+        help="Model to use (default: qwen/qwen-2.5-72b-instruct)",
+    )
+    args = parser.parse_args()
+
+    pending = find_pending(CORPUS_DIR)
+
+    if not pending:
+        print("Nothing to generate — all .corpus files already exist.")
+        return
+
+    print(f"Found {len(pending)} missing .corpus files.")
+
+    if args.n == 0:
+        print("\nDry-run — files that would be generated:")
+        for dirpath, filename, prompt in pending:
+            rel = os.path.relpath(os.path.join(dirpath, filename), CORPUS_DIR)
+            print(f"  {rel}")
+        return
+
+    api_key = load_key("FAL_KEY")
+    if not api_key:
+        print("ERROR: FAL_KEY not found in ~/.env", file=sys.stderr)
+        sys.exit(1)
+
+    to_generate = pending[: args.n]
+    print(f"Generating {len(to_generate)} of {len(pending)} missing files (model: {args.model})...\n")
+
+    for i, (dirpath, filename, prompt) in enumerate(to_generate, 1):
+        rel = os.path.relpath(os.path.join(dirpath, filename), CORPUS_DIR)
+        print(f"[{i}/{len(to_generate)}] {rel} ... ", end="", flush=True)
+        try:
+            content = generate_one(api_key, prompt, args.model)
+            out_path = os.path.join(dirpath, filename)
+            with open(out_path, "w") as f:
+                f.write(content + "\n")
+            print(f"OK ({len(content)} chars)")
+        except Exception as e:
+            print(f"FAILED: {e}")
+
+    remaining = len(pending) - len(to_generate)
+    if remaining > 0:
+        print(f"\n{remaining} files still remaining. Run again to continue.")
+    else:
+        print("\nAll files generated!")
+
+
+if __name__ == "__main__":
+    main()

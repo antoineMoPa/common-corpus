@@ -1,0 +1,10 @@
+lost_kitten.corpus Write a short story about a child who finds a lost kitten and helps it get home. Use very simple words, short sentences, and gentle repetition. Aim for 200-400 words.
+red_balloon.corpus Write a short story about a child chasing a red balloon through a park. Use very simple words, short sentences, and gentle repetition. Aim for 200-400 words.
+bedtime_moon.corpus Write a short story about the moon saying goodnight to all the animals. Use very simple words, short sentences, and gentle repetition. Aim for 200-400 words.
+muddy_puddles.corpus Write a short story about a rainy day spent jumping in muddy puddles. Use very simple words, short sentences, and gentle repetition. Aim for 200-400 words.
+hungry_bear.corpus Write a short story about a friendly bear looking for honey. Use very simple words, short sentences, and gentle repetition. Aim for 200-400 words.
+counting_ducks.corpus Write a short story about a child counting ducks at the pond. Use very simple words, short sentences, and gentle repetition. Aim for 200-400 words.
+rainbow_colors.corpus Write a short story about discovering all the colors of the rainbow. Use very simple words, short sentences, and gentle repetition. Aim for 200-400 words.
+baby_bird.corpus Write a short story about a baby bird learning to fly for the first time. Use very simple words, short sentences, and gentle repetition. Aim for 200-400 words.
+bath_time.corpus Write a short story about rubber ducks and bubbles during bath time. Use very simple words, short sentences, and gentle repetition. Aim for 200-400 words.
+sharing_toys.corpus Write a short story about two friends learning to share their favorite toys. Use very simple words, short sentences, and gentle repetition. Aim for 200-400 words.
