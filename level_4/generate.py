@@ -12,6 +12,7 @@ Reads FAL_KEY from ~/.env (KEY=VALUE format, one per line).
 """
 
 import argparse
+import asyncio
 import json
 import os
 import sys
@@ -130,15 +131,42 @@ def generate_one(api_key: str, prompt: str, model: str) -> str:
     return result["output"].strip()
 
 
-def main():
+async def generate_task(
+    sem: asyncio.Semaphore,
+    api_key: str,
+    dirpath: str,
+    filename: str,
+    prompt: str,
+    model: str,
+    i: int,
+    total: int,
+) -> None:
+    rel = os.path.relpath(os.path.join(dirpath, filename), CORPUS_DIR)
+    async with sem:
+        print(f"[{i}/{total}] {rel} ... ", end="", flush=True)
+        try:
+            content = await asyncio.to_thread(generate_one, api_key, prompt, model)
+            out_path = os.path.join(dirpath, filename)
+            with open(out_path, "w") as f:
+                f.write(content + "\n")
+            print(f"\n[{i}/{total}] {rel} OK ({len(content)} chars)")
+        except Exception as e:
+            print(f"\n[{i}/{total}] {rel} FAILED: {e}")
+
+
+async def main():
     parser = argparse.ArgumentParser(description="Generate missing .corpus files from prompts.txt")
     parser.add_argument(
         "-n", type=int, default=10,
         help="Max number of files to generate (0 = dry-run, default: 10)",
     )
     parser.add_argument(
-        "--model", type=str, default="qwen/qwen-2.5-72b-instruct",
-        help="Model to use (default: qwen/qwen-2.5-72b-instruct)",
+        "--model", type=str, default="qwen/qwen3.5-plus-02-15",
+        help="Model to use (default: qwen/qwen3.5-plus-02-15)",
+    )
+    parser.add_argument(
+        "--concurrency", type=int, default=5,
+        help="Number of concurrent requests (default: 5)",
     )
     args = parser.parse_args()
 
@@ -163,19 +191,15 @@ def main():
         sys.exit(1)
 
     to_generate = pending[: args.n]
-    print(f"Generating {len(to_generate)} of {len(pending)} missing files (model: {args.model})...\n")
+    print(f"Generating {len(to_generate)} of {len(pending)} missing files "
+          f"(model: {args.model}, concurrency: {args.concurrency})...\n")
 
-    for i, (dirpath, filename, prompt) in enumerate(to_generate, 1):
-        rel = os.path.relpath(os.path.join(dirpath, filename), CORPUS_DIR)
-        print(f"[{i}/{len(to_generate)}] {rel} ... ", end="", flush=True)
-        try:
-            content = generate_one(api_key, prompt, args.model)
-            out_path = os.path.join(dirpath, filename)
-            with open(out_path, "w") as f:
-                f.write(content + "\n")
-            print(f"OK ({len(content)} chars)")
-        except Exception as e:
-            print(f"FAILED: {e}")
+    sem = asyncio.Semaphore(args.concurrency)
+    tasks = [
+        generate_task(sem, api_key, dirpath, filename, prompt, args.model, i, len(to_generate))
+        for i, (dirpath, filename, prompt) in enumerate(to_generate, 1)
+    ]
+    await asyncio.gather(*tasks)
 
     remaining = len(pending) - len(to_generate)
     if remaining > 0:
@@ -185,4 +209,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
