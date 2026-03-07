@@ -48,3 +48,15 @@ for f in $(find corpus/ -name '*.corpus' -type f | sort); do
 done
 du -h corpus.corpus
 popd
+
+pushd .
+cd level_5/
+# Start with previous levels
+cat ../level_4/corpus.corpus > corpus.corpus
+# Add all generated level_5 .corpus files with stop tokens
+for f in $(find corpus/ -name '*.corpus' -type f | sort); do
+    cat "$f" >> corpus.corpus
+    echo '<stop>' >> corpus.corpus
+done
+du -h corpus.corpus
+popd
